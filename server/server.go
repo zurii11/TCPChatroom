@@ -1,15 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"sync"
 )
 
 func main() {
 	connectionCount := 0
-	connectionList := make([]net.Conn, 5)
-	messages := make([]byte, 0, 1024)
+	connectionMap := &sync.Map{}
 	server, err := net.Listen("tcp", ":5555")
 	fmt.Println("MOGESALMEBI PAPUNITO")
 
@@ -17,46 +19,47 @@ func main() {
 		fmt.Println("NAXUI BICHO: ", err.Error())
 		os.Exit(1)
 	}
+	defer server.Close()
 
 	for {
 		connection, err := server.Accept()
 
 		if err != nil {
-			fmt.Println("NAXUI BICHO: ", err.Error())
+			fmt.Println("NAXUI BICHO acc: ", err.Error())
 			os.Exit(1)
 		}
 
-		connectionList[connectionCount] = connection
+		connectionMap.Store(strconv.Itoa(connectionCount), connection)
 		connectionCount++
 
-		fmt.Println("CONNECTIONS: ", connectionList)
+		fmt.Println("CONNECTIONS: ", connectionMap)
 
-		go handleConnection(connection, messages)
+		go handleConnection(connection, connectionCount-1, connectionMap)
 	}
 }
 
-func handleConnection(connection net.Conn, messages []byte) {
-	buff := make([]byte, 128)
+func handleConnection(connection net.Conn, id int, connectionMap *sync.Map) {
+	defer func() {
+		connection.Close()
+		connectionMap.Delete(strconv.Itoa(id))
+	}()
 
-	bytesRead, err := connection.Read(buff)
+	for {
+		buff, err := bufio.NewReader(connection).ReadString('\n')
 
-	if err != nil {
-		fmt.Println("NAXUI BICHO: ", err.Error())
-		os.Exit(1)
+		if err != nil {
+			fmt.Println("NAXUI BICHOrr: ", err.Error())
+			return
+		}
+
+		connectionMap.Range(func(key, value interface{}) bool {
+			if conn, ok := value.(net.Conn); ok {
+				if _, err := conn.Write([]byte(buff)); err != nil {
+					fmt.Println("NAXUI BICHO: ", err.Error())
+				}
+			}
+
+			return true
+		})
 	}
-
-	fmt.Println("BYTES READ: ", bytesRead)
-	fmt.Println("READ: ", string(buff))
-
-	messages = append(messages, buff...)
-
-	fmt.Println(messages)
-	bytesSent, err := connection.Write(messages)
-
-	if err != nil {
-		fmt.Println("NAXUI BICHO: ", err.Error())
-		os.Exit(1)
-	}
-
-	fmt.Println(bytesSent)
 }
