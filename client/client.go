@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -11,28 +12,18 @@ func main() {
 	connection, err := net.Dial("tcp", ":5555")
 	fmt.Println("MOGESALMEBI PAPUNITO")
 
+	defer connection.Close()
+
 	if err != nil {
 		fmt.Println("NAXUI BICHO: ", err.Error())
 		os.Exit(1)
 	}
+
+	go io.Copy(os.Stdout, connection)
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("ENTER MSG: ")
-	text, _ := reader.ReadString('\n')
-
-	bytesSent, err := connection.Write([]byte(text))
-
-	if err != nil {
-		fmt.Println("NAXUI BICHO: ", err.Error())
-		os.Exit(1)
+	for {
+		text, _ := reader.ReadString('\n')
+		connection.Write([]byte(text))
 	}
-
-	fmt.Println("BYTES SENT: ", bytesSent)
-
-	buff := make([]byte, 1024)
-
-	bytesRead, err := connection.Read(buff)
-
-	fmt.Println("MSG: ", string(buff[:bytesRead]))
-	connection.Close()
 }

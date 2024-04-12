@@ -54,8 +54,10 @@ func handleConnection(connection net.Conn, id int, connectionMap *sync.Map) {
 
 		connectionMap.Range(func(key, value interface{}) bool {
 			if conn, ok := value.(net.Conn); ok {
-				if _, err := conn.Write([]byte(buff)); err != nil {
-					fmt.Println("NAXUI BICHO: ", err.Error())
+				if conn != connection {
+					if _, err := conn.Write([]byte(buff)); err != nil {
+						fmt.Println("NAXUI BICHO: ", err.Error())
+					}
 				}
 			}
 
